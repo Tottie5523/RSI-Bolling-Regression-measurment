@@ -1,0 +1,32 @@
+import pandas as pd
+import numpy as np
+import talib
+import tushare as ts
+
+# 获取ETH数据
+df = ts.get_k_data('ETH', start='2019-01-01', end='2021-01-01')
+df.index = pd.to_datetime(df.date)
+df = df[['open', 'high', 'low', 'close']]
+
+# 计算布林带指标
+df['upper'], df['middle'], df['lower'] = talib.BBANDS(df.close.values, timeperiod=20)
+
+# 计算RSI指标
+df['rsi'] = talib.RSI(df.close.values, timeperiod=14)
+
+# 买入信号
+df['buy_signal'] = np.where((df.close < df.lower) & (df.rsi < 20), 1, 0)
+
+# 卖出信号
+df['sell_signal'] = np.where((df.close > df.upper) & (df.rsi > 80), -1, 0)
+
+# 计算每日收益率
+df['pct_change'] = df.close.pct_change()
+
+# 计算策略收益率
+df['strategy_return'] = df.pct_change() * (df.buy_signal.shift(1) + df.sell_signal.shift(1))
+
+# 计算累计收益率
+df['cum_return'] = (1 + df.strategy_return).cumprod()
+
+print(df.tail())
